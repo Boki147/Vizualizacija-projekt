@@ -121,6 +121,24 @@ function drawBar(data) {
     barSvg.append("g")
         .attr("transform", `translate(${margin.left},0)`)
         .call(d3.axisLeft(y));
+        
+    //x labela
+    barSvg.append("text")
+        .attr("x", width )
+        .attr("y", height-30)
+        .attr("text-anchor", "middle")
+        .attr("fill", "white")
+        .text("Genre");
+
+
+        // Y AXIS LABEL
+    barSvg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", 20)
+        .attr("text-anchor", "middle")
+        .attr("fill", "white")
+        .text("Number of Titles");
 
     barSvg.selectAll("rect")
         .data(arr)
@@ -166,13 +184,10 @@ function drawPie(data) {
     const pie = d3.pie().value(d => d.v);
     const arc = d3.arc().innerRadius(0).outerRadius(radius);
 
-    // 🔥 BOJE PO TIPU
+    //  BOJE 
     const color = d3.scaleOrdinal()
         .domain(["Movie", "TV Show"])
-        .range(["#E50914", "#e57b09"]); // možeš kasnije promijeniti
-
-    // 👇 ako želiš bolje razlikovanje:
-    // .range(["#E50914", "#B81D24"]);
+        .range(["#E50914", "#e57b09"]); 
 
     g.selectAll("path")
         .data(pie(arr))
@@ -193,9 +208,31 @@ function drawPie(data) {
                 .style("top", event.pageY - 20 + "px");
         })
         .on("mouseout", () => tooltip.style("opacity", 0));
+    const legend = pieSvg.append("g")
+        .attr("transform", "translate(450, 100)");
+
+    legend.selectAll("rect")
+        .data(arr)
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y", (d, i) => i * 30)
+        .attr("width", 18)
+        .attr("height", 18)
+        .attr("fill", d => color(d.k));
+
+    legend.selectAll("text")
+        .data(arr)
+        .enter()
+        .append("text")
+        .attr("x", 28)
+        .attr("y", (d, i) => i * 30 + 14)
+        .attr("fill", "white")
+        .style("font-size", "14px")
+        .text(d => d.k);
 }
 
-// ---------------- LINE (FIXED AXES) ----------------
+// ---------------- LINE ----------------
 
 function drawLine(data) {
 
@@ -225,26 +262,64 @@ function drawLine(data) {
     lineSvg.append("g")
         .attr("transform", `translate(${margin.left},0)`)
         .call(d3.axisLeft(y));
+    // X AXIS LABEL
+    lineSvg.append("text")
+        .attr("x", lineWidth / 2)
+        .attr("y", height - 5)
+        .attr("text-anchor", "middle")
+        .attr("fill", "white")
+        .style("font-size", "14px")
+        .text("Release Year");
+
+    // Y AXIS LABEL
+    lineSvg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", 20)
+        .attr("text-anchor", "middle")
+        .attr("fill", "white")
+        .style("font-size", "14px")
+        .text("Number of Titles");
 
     const line = d3.line()
         .x(d => x(d.year))
         .y(d => y(d.count));
 
-    lineSvg.append("path")
-        .datum(grouped)
-        .attr("fill", "none")
-        .attr("stroke", "#E50914")
-        .attr("stroke-width", 2)
-        .attr("d", line);
+   const path = lineSvg.append("path")
+    .datum(grouped)
+    .attr("fill", "none")
+    .attr("stroke", "#E50914")
+    .attr("stroke-width", 3)
+    .attr("d", line);
 
-    lineSvg.selectAll("circle")
+    // ukupna duljina linije
+    const totalLength = path.node().getTotalLength();
+
+    // sakrij cijelu liniju
+    path
+        .attr("stroke-dasharray", totalLength)
+        .attr("stroke-dashoffset", totalLength)
+        .transition()
+        .duration(2500)
+        .ease(d3.easeLinear)
+        .attr("stroke-dashoffset", 0);
+
+    const circles = lineSvg.selectAll("circle")
         .data(grouped)
         .enter()
         .append("circle")
         .attr("cx", d => x(d.year))
         .attr("cy", d => y(d.count))
-        .attr("r", 4)
-        .attr("fill", "#E50914")
+        .attr("r", 0)
+        .attr("fill", "#E50914");
+
+    circles
+        .transition()
+        .delay(2500)
+        .duration(500)
+        .attr("r", 4);
+
+    circles
         .on("mousemove", (event, d) => {
             tooltip
                 .style("opacity", 1)
@@ -372,13 +447,34 @@ Promise.all([
         // ZOOM FUNCTIONALITY
         // -------------------------
 
-        const zoom = d3.zoom()
-            .scaleExtent([1, 8])
-            .on("zoom", (event) => {
-                g.attr("transform", event.transform);
-            });
+    let resetTimer;
 
-        mapSvg.call(zoom);
+    const zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", (event) => {
+
+            g.attr("transform", event.transform);
+
+            // reset countdown
+            clearTimeout(resetTimer);
+
+            resetTimer = setTimeout(() => {
+
+        mapSvg.transition()
+            .duration(1000)
+            .call(zoom.transform, d3.zoomIdentity);
+                
+        // HIDE
+        d3.select("#tooltip")
+            .style("opacity", 0);
+                
+        }, 2000);
+
+        });
+
+    mapSvg.call(zoom);
+
+      
     });
 
 });
